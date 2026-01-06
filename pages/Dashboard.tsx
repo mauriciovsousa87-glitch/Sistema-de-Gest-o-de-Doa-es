@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Wallet, Package, Heart, Users, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Wallet, Package, Heart, Users, AlertTriangle, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { useAppStore } from '../store';
 import { formatCurrency } from '../utils';
 import { DashboardCharts } from '../components/DashboardCharts';
@@ -41,11 +41,14 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Saldo em Caixa" value={formatCurrency(stats.cashBalance)} icon={Wallet} color="bg-blue-600" trend={{ type: 'up', value: '12%' }} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <KPICard label="Saldo em Caixa" value={formatCurrency(stats.cashBalance)} icon={Wallet} color="bg-blue-600" />
+        <KPICard label="Valor Total Arrecadado" value={formatCurrency(stats.totalMoneyIn)} icon={ArrowUpCircle} color="bg-emerald-600" />
+        <KPICard label="Valor Total Doado" value={formatCurrency(stats.totalMoneyOut)} icon={ArrowDownCircle} color="bg-rose-600" />
+        
         <KPICard label="Estoque Estimado" value={formatCurrency(stats.estimatedStockValue)} icon={Package} color="bg-yellow-600" />
-        <KPICard label="Itens Doados" value={stats.totalItemsOut.toLocaleString()} icon={Heart} color="bg-red-600" trend={{ type: 'up', value: '5%' }} />
-        <KPICard label="Beneficiários" value={(stats.institutionsServed + stats.individualsServed).toString()} icon={Users} color="bg-emerald-600" subtext={`${stats.institutionsServed} PJ e ${stats.individualsServed} PF`} />
+        <KPICard label="Itens Doados" value={stats.totalItemsOut.toLocaleString()} icon={Heart} color="bg-red-600" />
+        <KPICard label="Beneficiários" value={(stats.institutionsServed + stats.individualsServed).toString()} icon={Users} color="bg-indigo-600" subtext={`${stats.institutionsServed} PJ e ${stats.individualsServed} PF`} />
       </div>
 
       {lowStockCount > 0 && (
