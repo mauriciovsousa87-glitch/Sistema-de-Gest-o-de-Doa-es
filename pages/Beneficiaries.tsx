@@ -2,12 +2,13 @@
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../store';
 import { Institution, Individual, InstitutionType, AreaOfActivity, PartnershipType, PartnershipFrequency } from '../types';
-import { Building2, Plus, Search, ChevronRight, User, Phone, Mail, MapPin, Inbox } from 'lucide-react';
+import { Building2, Plus, Search, User, Phone, Mail, MapPin, Inbox, Loader2 } from 'lucide-react';
 import { formatCNPJ, formatPhone } from '../utils';
 
 const Beneficiaries: React.FC = () => {
   const { institutions, individuals, addInstitution, addIndividual, loading } = useAppStore();
   const [showForm, setShowForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [beneficiaryType, setBeneficiaryType] = useState<'PJ' | 'PF'>('PJ');
   const [search, setSearch] = useState('');
 
@@ -27,6 +28,7 @@ const Beneficiaries: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       if (beneficiaryType === 'PJ') {
         await addInstitution({ ...formPJ, active: true });
@@ -34,9 +36,13 @@ const Beneficiaries: React.FC = () => {
         await addIndividual({ ...formPF, active: true });
       }
       setShowForm(false);
-      // O Refresh Data é chamado dentro das funções da store
-    } catch (error) {
-      alert("Houve um erro ao salvar o cadastro. Tente novamente.");
+      // Reset forms
+      setSearch('');
+    } catch (error: any) {
+      console.error("Erro no formulário:", error);
+      alert(`Erro ao salvar: ${error.message || 'Verifique sua conexão ou se a tabela existe no banco.'}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -57,29 +63,26 @@ const Beneficiaries: React.FC = () => {
           <h2 className="text-2xl font-bold text-slate-800">Gestão de Beneficiários</h2>
           <p className="text-slate-500 text-sm">Organize as instituições e pessoas atendidas pelo We Care.</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="bg-[#001A33] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-[#002a52] transition-all shadow-lg flex items-center gap-2">
-          {showForm ? 'Cancelar Cadastro' : <><Plus size={20} /> Novo Beneficiário</>}
-        </button>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} className="bg-[#001A33] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-[#002a52] transition-all shadow-lg flex items-center gap-2">
+            <Plus size={20} /> Novo Beneficiário
+          </button>
+        )}
       </div>
-
-      {!showForm && (
-        <div className="flex bg-white p-1 rounded-xl border w-fit mb-4 shadow-sm">
-          <button onClick={() => setBeneficiaryType('PJ')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${beneficiaryType === 'PJ' ? 'bg-[#001A33] text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Instituições (PJ)</button>
-          <button onClick={() => setBeneficiaryType('PF')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${beneficiaryType === 'PF' ? 'bg-[#001A33] text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Pessoas Físicas (PF)</button>
-        </div>
-      )}
 
       {showForm ? (
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border shadow-sm p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-300">
-           {/* Form Content - Mesma estrutura anterior */}
-          <div className="flex items-center gap-4 border-b pb-4">
-            <span className="font-bold text-slate-700">Tipo:</span>
-            <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-600">
-              <input type="radio" checked={beneficiaryType === 'PJ'} onChange={() => setBeneficiaryType('PJ')} className="w-4 h-4 text-[#001A33]" /> Pessoa Jurídica
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-600">
-              <input type="radio" checked={beneficiaryType === 'PF'} onChange={() => setBeneficiaryType('PF')} className="w-4 h-4 text-[#001A33]" /> Pessoa Física
-            </label>
+          <div className="flex items-center justify-between border-b pb-4">
+            <div className="flex items-center gap-4">
+              <span className="font-bold text-slate-700">Tipo:</span>
+              <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-600">
+                <input type="radio" name="type" checked={beneficiaryType === 'PJ'} onChange={() => setBeneficiaryType('PJ')} className="w-4 h-4 text-[#001A33]" /> Pessoa Jurídica
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-600">
+                <input type="radio" name="type" checked={beneficiaryType === 'PF'} onChange={() => setBeneficiaryType('PF')} className="w-4 h-4 text-[#001A33]" /> Pessoa Física
+              </label>
+            </div>
+            <button type="button" onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600 text-sm font-bold">Cancelar</button>
           </div>
 
           {beneficiaryType === 'PJ' ? (
@@ -123,19 +126,28 @@ const Beneficiaries: React.FC = () => {
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-[#EAB308] text-[#001A33] font-black py-4 rounded-xl hover:opacity-90 transition-all shadow-xl">
-            FINALIZAR E SALVAR NO BANCO
+          <button 
+            type="submit" 
+            disabled={isSaving}
+            className="w-full bg-[#EAB308] text-[#001A33] font-black py-4 rounded-xl hover:opacity-90 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isSaving ? <><Loader2 className="animate-spin" size={20} /> PROCESSANDO...</> : 'FINALIZAR E SALVAR NO BANCO'}
           </button>
         </form>
       ) : (
         <div className="space-y-4">
+          <div className="flex bg-white p-1 rounded-xl border w-fit mb-4 shadow-sm">
+            <button onClick={() => setBeneficiaryType('PJ')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${beneficiaryType === 'PJ' ? 'bg-[#001A33] text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Instituições (PJ)</button>
+            <button onClick={() => setBeneficiaryType('PF')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${beneficiaryType === 'PF' ? 'bg-[#001A33] text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Pessoas Físicas (PF)</button>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input type="text" placeholder="Pesquisar por nome ou documento..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border bg-white focus:ring-2 focus:ring-[#001A33] outline-none shadow-sm" />
           </div>
 
           {loading ? (
-             <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
+             <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-[#001A33] border-t-transparent rounded-full animate-spin"></div></div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {beneficiaryType === 'PJ' ? (

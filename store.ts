@@ -34,7 +34,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const refreshData = useCallback(async () => {
     try {
-      // Nota: Não setamos loading aqui para evitar "piscadas" na UI durante atualizações de fundo
       const [itemsRes, instRes, indRes, movRes] = await Promise.all([
         supabase.from('doa_items').select('*').order('name'),
         supabase.from('doa_institutions').select('*').order('name'),
@@ -42,13 +41,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         supabase.from('doa_movements').select('*').order('date', { ascending: false })
       ]);
 
-      if (itemsRes.data) setItems(itemsRes.data.map(i => ({ ...i, referenceValue: i.reference_value, imageUrl: i.image_url })));
-      if (instRes.data) setInstitutions(instRes.data);
-      if (indRes.data) setIndividuals(indRes.data);
-      if (movRes.data) setMovements(movRes.data.map(m => ({
-        ...m, itemId: m.item_id, unitValue: m.unit_value, totalValue: m.total_value,
-        valueMoney: m.value_money, destinationId: m.destination_id, recipientId: m.recipient_id
-      })));
+      if (itemsRes.data) {
+        setItems(itemsRes.data.map(i => ({
+          ...i,
+          referenceValue: i.reference_value,
+          imageUrl: i.image_url
+        })));
+      }
+      
+      if (instRes.data) {
+        setInstitutions(instRes.data.map(i => ({
+          ...i,
+          address: {
+            street: i.street, number: i.number, neighborhood: i.neighborhood,
+            city: i.city, state: i.state, zipCode: i.zip_code
+          },
+          responsible: {
+            name: i.responsible_name, phone: i.responsible_phone, email: i.responsible_email
+          },
+          areaOfActivity: i.area_of_activity,
+          activitiesDescription: i.activities_description,
+          partnershipType: i.partnership_type,
+          partnershipFrequency: i.partnership_frequency,
+          hasPastExperience: i.has_past_experience,
+          pastExperienceDescription: i.past_experience_description
+        })));
+      }
+
+      if (indRes.data) {
+        setIndividuals(indRes.data.map(i => ({
+          ...i,
+          address: {
+            street: i.street, number: i.number, neighborhood: i.neighborhood,
+            city: i.city, state: i.state, zipCode: i.zip_code
+          }
+        })));
+      }
+
+      if (movRes.data) {
+        setMovements(movRes.data.map(m => ({
+          ...m,
+          itemId: m.item_id,
+          unitValue: m.unit_value,
+          totalValue: m.total_value,
+          valueMoney: m.value_money,
+          destinationId: m.destination_id,
+          recipientId: m.recipient_id,
+          paymentMethod: m.payment_method
+        })));
+      }
     } catch (error) {
       console.error('Erro crítico ao buscar dados do Supabase:', error);
     } finally {
@@ -87,10 +128,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addMovement = async (mov: any) => {
     const payload = {
-      type: mov.type, date: mov.date, category: mov.category, item_id: mov.itemId,
-      quantity: mov.quantity, unit_value: mov.unitValue, total_value: mov.totalValue,
-      value_money: mov.valueMoney, donor: mov.donor, destination_id: mov.destinationId,
-      recipient_id: mov.recipientId, notes: mov.notes
+      type: mov.type,
+      date: mov.date,
+      category: mov.category,
+      item_id: mov.itemId,
+      quantity: mov.quantity,
+      unit_value: mov.unitValue,
+      total_value: mov.totalValue,
+      value_money: mov.valueMoney,
+      donor: mov.donor,
+      destination_id: mov.destinationId,
+      recipient_id: mov.recipientId,
+      notes: mov.notes,
+      payment_method: mov.paymentMethod
     };
     const { error } = await supabase.from('doa_movements').insert([payload]);
     if (error) throw error;
@@ -98,26 +148,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addItem = async (item: any) => {
-    const { error } = await supabase.from('doa_items').insert([{ ...item, reference_value: item.referenceValue, image_url: item.imageUrl }]);
+    const payload = {
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      reference_value: item.referenceValue,
+      image_url: item.imageUrl,
+      description: item.description,
+      active: item.active
+    };
+    const { error } = await supabase.from('doa_items').insert([payload]);
     if (error) throw error;
     await refreshData();
   };
 
   const addInstitution = async (inst: any) => {
-    const { error } = await supabase.from('doa_institutions').insert([inst]);
-    if (error) {
-      console.error('Erro ao salvar Instituição:', error);
-      throw error;
-    }
+    const payload = {
+      name: inst.name,
+      type: inst.type,
+      cnpj: inst.cnpj,
+      phone: inst.phone,
+      email: inst.email,
+      active: inst.active,
+      street: inst.address.street,
+      number: inst.address.number,
+      neighborhood: inst.address.neighborhood,
+      city: inst.address.city,
+      state: inst.address.state,
+      zip_code: inst.address.zipCode,
+      responsible_name: inst.responsible.name,
+      responsible_phone: inst.responsible.phone,
+      responsible_email: inst.responsible.email,
+      objective: inst.objective,
+      area_of_activity: inst.areaOfActivity,
+      activities_description: inst.activitiesDescription,
+      partnership_type: inst.partnershipType,
+      partnership_frequency: inst.partnershipFrequency,
+      has_past_experience: inst.hasPastExperience,
+      past_experience_description: inst.pastExperienceDescription,
+      notes: inst.notes
+    };
+
+    const { error } = await supabase.from('doa_institutions').insert([payload]);
+    if (error) throw error;
     await refreshData();
   };
 
   const addIndividual = async (ind: any) => {
-    const { error } = await supabase.from('doa_individuals').insert([ind]);
-    if (error) {
-      console.error('Erro ao salvar Pessoa Física:', error);
-      throw error;
-    }
+    const payload = {
+      name: ind.name,
+      cpf: ind.cpf,
+      phone: ind.phone,
+      email: ind.email,
+      notes: ind.notes,
+      active: ind.active,
+      street: ind.address.street,
+      number: ind.address.number,
+      neighborhood: ind.address.neighborhood,
+      city: ind.address.city,
+      state: ind.address.state,
+      zip_code: ind.address.zipCode
+    };
+
+    const { error } = await supabase.from('doa_individuals').insert([payload]);
+    if (error) throw error;
     await refreshData();
   };
 
