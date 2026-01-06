@@ -33,8 +33,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [loading, setLoading] = useState(true);
 
   const refreshData = useCallback(async () => {
-    setLoading(true);
     try {
+      // Nota: Não setamos loading aqui para evitar "piscadas" na UI durante atualizações de fundo
       const [itemsRes, instRes, indRes, movRes] = await Promise.all([
         supabase.from('doa_items').select('*').order('name'),
         supabase.from('doa_institutions').select('*').order('name'),
@@ -50,7 +50,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         valueMoney: m.value_money, destinationId: m.destination_id, recipientId: m.recipient_id
       })));
     } catch (error) {
-      console.error('Erro ao buscar dados:', error);
+      console.error('Erro crítico ao buscar dados do Supabase:', error);
     } finally {
       setLoading(false);
     }
@@ -70,10 +70,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [items, movements]);
 
   const getDashboardStats = useCallback((): DashboardStats => {
-    const moneyIn = movements.filter(m => m.type === 'ENTRADA' && m.category === 'DINHEIRO').reduce((a, c) => a + (c.valueMoney || 0), 0);
-    const moneyOut = movements.filter(m => m.type === 'SAÍDA' && m.category === 'DINHEIRO').reduce((a, c) => a + (c.valueMoney || 0), 0);
-    const itemsIn = movements.filter(m => m.type === 'ENTRADA' && m.category === 'ITEM').reduce((a, c) => a + (c.quantity || 0), 0);
-    const itemsOut = movements.filter(m => m.type === 'SAÍDA' && m.category === 'ITEM').reduce((a, c) => a + (c.quantity || 0), 0);
+    const moneyIn = movements.filter(m => m.type === 'ENTRADA' && m.category === 'DINHEIRO').reduce((a, c) => a + (Number(c.valueMoney) || 0), 0);
+    const moneyOut = movements.filter(m => m.type === 'SAÍDA' && m.category === 'DINHEIRO').reduce((a, c) => a + (Number(c.valueMoney) || 0), 0);
+    const itemsIn = movements.filter(m => m.type === 'ENTRADA' && m.category === 'ITEM').reduce((a, c) => a + (Number(c.quantity) || 0), 0);
+    const itemsOut = movements.filter(m => m.type === 'SAÍDA' && m.category === 'ITEM').reduce((a, c) => a + (Number(c.quantity) || 0), 0);
     const stock = getStock();
     const instSrv = new Set(movements.filter(m => m.type === 'SAÍDA' && m.destinationId).map(m => m.destinationId)).size;
     const indSrv = new Set(movements.filter(m => m.type === 'SAÍDA' && m.recipientId).map(m => m.recipientId)).size;
@@ -105,13 +105,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addInstitution = async (inst: any) => {
     const { error } = await supabase.from('doa_institutions').insert([inst]);
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao salvar Instituição:', error);
+      throw error;
+    }
     await refreshData();
   };
 
   const addIndividual = async (ind: any) => {
     const { error } = await supabase.from('doa_individuals').insert([ind]);
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao salvar Pessoa Física:', error);
+      throw error;
+    }
     await refreshData();
   };
 
