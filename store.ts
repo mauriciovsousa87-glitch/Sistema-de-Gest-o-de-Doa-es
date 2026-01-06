@@ -20,6 +20,9 @@ interface AppContextType {
   addItem: (item: Omit<Item, 'id' | 'createdAt'>) => Promise<void>;
   addInstitution: (inst: Omit<Institution, 'id'>) => Promise<void>;
   addIndividual: (ind: Omit<Individual, 'id'>) => Promise<void>;
+  deleteInstitution: (id: string) => Promise<void>;
+  deleteIndividual: (id: string) => Promise<void>;
+  deleteItem: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -125,54 +128,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       past_experience_description: inst.pastExperienceDescription,
       notes: inst.notes
     };
-
     const { error } = await supabase.from('doa_institutions').insert([payload]);
-    if (error) {
-      console.error('Erro ao salvar instituição:', error);
-      throw error;
-    }
+    if (error) throw error;
     await refreshData();
   };
 
   const addIndividual = async (ind: any) => {
     const payload = {
-      name: ind.name,
-      cpf: ind.cpf,
-      phone: ind.phone,
-      email: ind.email,
-      notes: ind.notes,
-      active: true,
-      street: ind.address.street,
-      number: ind.address.number,
-      neighborhood: ind.address.neighborhood,
-      city: ind.address.city,
-      state: ind.address.state,
-      zip_code: ind.address.zipCode
+      name: ind.name, cpf: ind.cpf, phone: ind.phone, email: ind.email, notes: ind.notes, active: true,
+      street: ind.address.street, number: ind.address.number, neighborhood: ind.address.neighborhood,
+      city: ind.address.city, state: ind.address.state, zip_code: ind.address.zipCode
     };
-
     const { error } = await supabase.from('doa_individuals').insert([payload]);
-    if (error) {
-      console.error('Erro ao salvar indivíduo:', error);
-      throw error;
-    }
+    if (error) throw error;
+    await refreshData();
+  };
+
+  const deleteInstitution = async (id: string) => {
+    const { error } = await supabase.from('doa_institutions').delete().eq('id', id);
+    if (error) throw error;
+    await refreshData();
+  };
+
+  const deleteIndividual = async (id: string) => {
+    const { error } = await supabase.from('doa_individuals').delete().eq('id', id);
+    if (error) throw error;
+    await refreshData();
+  };
+
+  const deleteItem = async (id: string) => {
+    const { error } = await supabase.from('doa_items').delete().eq('id', id);
+    if (error) throw error;
     await refreshData();
   };
 
   const addMovement = async (mov: any) => {
     const payload = {
-      type: mov.type,
-      date: mov.date,
-      category: mov.category,
-      item_id: mov.itemId,
-      quantity: mov.quantity,
-      unit_value: mov.unitValue,
-      total_value: mov.totalValue,
-      value_money: mov.valueMoney,
-      donor: mov.donor,
-      destination_id: mov.destinationId,
-      recipient_id: mov.recipientId,
-      notes: mov.notes,
-      payment_method: mov.paymentMethod
+      type: mov.type, date: mov.date, category: mov.category, item_id: mov.itemId,
+      quantity: mov.quantity, unit_value: mov.unitValue, total_value: mov.totalValue,
+      value_money: mov.valueMoney, donor: mov.donor, destination_id: mov.destinationId,
+      recipient_id: mov.recipientId, notes: mov.notes, payment_method: mov.paymentMethod
     };
     const { error } = await supabase.from('doa_movements').insert([payload]);
     if (error) throw error;
@@ -181,13 +176,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addItem = async (item: any) => {
     const payload = {
-      name: item.name,
-      category: item.category,
-      unit: item.unit,
-      reference_value: item.referenceValue,
-      image_url: item.imageUrl,
-      description: item.description,
-      active: item.active
+      name: item.name, category: item.category, unit: item.unit,
+      reference_value: item.referenceValue, image_url: item.imageUrl,
+      description: item.description, active: item.active
     };
     const { error } = await supabase.from('doa_items').insert([payload]);
     if (error) throw error;
@@ -222,7 +213,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [movements, getStock]);
 
   return React.createElement(AppContext.Provider, {
-    value: { items, institutions, individuals, movements, loading, getStock, getDashboardStats, addMovement, addItem, addInstitution, addIndividual, refreshData }
+    value: { items, institutions, individuals, movements, loading, getStock, getDashboardStats, addMovement, addItem, addInstitution, addIndividual, deleteInstitution, deleteIndividual, deleteItem, refreshData }
   }, children);
 };
 
