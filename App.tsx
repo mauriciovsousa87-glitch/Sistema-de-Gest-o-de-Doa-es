@@ -9,6 +9,7 @@ import Stock from './pages/Stock';
 import Institutions from './pages/Institutions';
 import Exits from './pages/Exits';
 import Financial from './pages/Financial';
+import Items from './pages/Items'; // Importação da nova página
 import { AlertCircle, Loader2 } from 'lucide-react';
 
 const LoadingScreen: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -49,8 +50,8 @@ const App: React.FC = () => {
               <Route path="/stock" element={<Stock />} />
               <Route path="/institutions" element={<Institutions />} />
               <Route path="/financial" element={<Financial />} />
+              <Route path="/items" element={<Items />} />
               
-              <Route path="/items" element={<PlaceholderPage title="Cadastro de Itens" />} />
               <Route path="/reports" element={<PlaceholderPage title="Relatórios / Exportar" />} />
               <Route path="/settings" element={<PlaceholderPage title="Configurações" />} />
             </Routes>
