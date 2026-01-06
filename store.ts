@@ -44,7 +44,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (itemsRes.data) {
         setItems(itemsRes.data.map(i => ({
           ...i,
-          referenceValue: i.reference_value,
+          referenceValue: Number(i.reference_value) || 0,
           imageUrl: i.image_url
         })));
       }
@@ -57,14 +57,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             city: i.city, state: i.state, zipCode: i.zip_code
           },
           responsible: {
-            name: i.responsible_name, phone: i.responsible_phone, email: i.responsible_email
+            name: i.responsible_name, position: '', phone: i.responsible_phone, email: i.responsible_email
           },
           areaOfActivity: i.area_of_activity,
           activitiesDescription: i.activities_description,
           partnershipType: i.partnership_type,
           partnershipFrequency: i.partnership_frequency,
           hasPastExperience: i.has_past_experience,
-          past_experience_description: i.past_experience_description
+          pastExperienceDescription: i.past_experience_description
         })));
       }
 
@@ -82,16 +82,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setMovements(movRes.data.map(m => ({
           ...m,
           itemId: m.item_id,
-          unitValue: m.unit_value,
-          totalValue: m.total_value,
-          valueMoney: m.value_money,
+          unitValue: Number(m.unit_value) || 0,
+          totalValue: Number(m.total_value) || 0,
+          valueMoney: Number(m.value_money) || 0,
           destinationId: m.destination_id,
           recipientId: m.recipient_id,
           paymentMethod: m.payment_method
         })));
       }
     } catch (error) {
-      console.error('Erro crítico ao buscar dados:', error);
+      console.error('Erro crítico ao buscar dados do Supabase:', error);
     } finally {
       setLoading(false);
     }
@@ -99,37 +99,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => { refreshData(); }, [refreshData]);
 
-  const addIndividual = async (ind: any) => {
-    // Mapeamento explícito para o banco de dados
-    const payload = {
-      name: ind.name,
-      cpf: ind.cpf,
-      phone: ind.phone,
-      email: ind.email,
-      notes: ind.notes,
-      active: ind.active,
-      street: ind.address.street,
-      number: ind.address.number,
-      neighborhood: ind.address.neighborhood,
-      city: ind.address.city,
-      state: ind.address.state,
-      zip_code: ind.address.zipCode
-    };
-
-    const { error } = await supabase.from('doa_individuals').insert([payload]);
-    if (error) throw error;
-    await refreshData();
-  };
-
   const addInstitution = async (inst: any) => {
-    // Mapeamento explícito para o banco de dados
     const payload = {
       name: inst.name,
       type: inst.type,
       cnpj: inst.cnpj,
       phone: inst.phone,
       email: inst.email,
-      active: inst.active,
+      active: true,
       street: inst.address.street,
       number: inst.address.number,
       neighborhood: inst.address.neighborhood,
@@ -150,11 +127,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const { error } = await supabase.from('doa_institutions').insert([payload]);
+    if (error) {
+      console.error('Erro ao salvar instituição:', error);
+      throw error;
+    }
+    await refreshData();
+  };
+
+  const addIndividual = async (ind: any) => {
+    const payload = {
+      name: ind.name,
+      cpf: ind.cpf,
+      phone: ind.phone,
+      email: ind.email,
+      notes: ind.notes,
+      active: true,
+      street: ind.address.street,
+      number: ind.address.number,
+      neighborhood: ind.address.neighborhood,
+      city: ind.address.city,
+      state: ind.address.state,
+      zip_code: ind.address.zipCode
+    };
+
+    const { error } = await supabase.from('doa_individuals').insert([payload]);
+    if (error) {
+      console.error('Erro ao salvar indivíduo:', error);
+      throw error;
+    }
+    await refreshData();
+  };
+
+  const addMovement = async (mov: any) => {
+    const payload = {
+      type: mov.type,
+      date: mov.date,
+      category: mov.category,
+      item_id: mov.itemId,
+      quantity: mov.quantity,
+      unit_value: mov.unitValue,
+      total_value: mov.totalValue,
+      value_money: mov.valueMoney,
+      donor: mov.donor,
+      destination_id: mov.destinationId,
+      recipient_id: mov.recipientId,
+      notes: mov.notes,
+      payment_method: mov.paymentMethod
+    };
+    const { error } = await supabase.from('doa_movements').insert([payload]);
     if (error) throw error;
     await refreshData();
   };
 
-  // Funções de Stock e Dashboard (mantidas do original)
+  const addItem = async (item: any) => {
+    const payload = {
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      reference_value: item.referenceValue,
+      image_url: item.imageUrl,
+      description: item.description,
+      active: item.active
+    };
+    const { error } = await supabase.from('doa_items').insert([payload]);
+    if (error) throw error;
+    await refreshData();
+  };
+
   const getStock = useCallback((): StockInfo[] => {
     return items.map(item => {
       const entries = movements.filter(m => m.type === 'ENTRADA' && m.category === 'ITEM' && m.itemId === item.id)
@@ -181,29 +220,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       institutionsServed: instSrv, individualsServed: indSrv
     };
   }, [movements, getStock]);
-
-  const addMovement = async (mov: any) => {
-    const payload = {
-      type: mov.type, date: mov.date, category: mov.category, item_id: mov.itemId,
-      quantity: mov.quantity, unit_value: mov.unitValue, total_value: mov.totalValue,
-      value_money: mov.valueMoney, donor: mov.donor, destination_id: mov.destinationId,
-      recipient_id: mov.recipientId, notes: mov.notes, payment_method: mov.paymentMethod
-    };
-    const { error } = await supabase.from('doa_movements').insert([payload]);
-    if (error) throw error;
-    await refreshData();
-  };
-
-  const addItem = async (item: any) => {
-    const payload = {
-      name: item.name, category: item.category, unit: item.unit,
-      reference_value: item.referenceValue, image_url: item.imageUrl,
-      description: item.description, active: item.active
-    };
-    const { error } = await supabase.from('doa_items').insert([payload]);
-    if (error) throw error;
-    await refreshData();
-  };
 
   return React.createElement(AppContext.Provider, {
     value: { items, institutions, individuals, movements, loading, getStock, getDashboardStats, addMovement, addItem, addInstitution, addIndividual, refreshData }
