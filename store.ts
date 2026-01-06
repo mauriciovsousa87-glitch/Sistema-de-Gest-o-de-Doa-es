@@ -23,6 +23,7 @@ interface AppContextType {
   deleteInstitution: (id: string) => Promise<void>;
   deleteIndividual: (id: string) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
+  deleteMovement: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -104,29 +105,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addInstitution = async (inst: any) => {
     const payload = {
-      name: inst.name,
-      type: inst.type,
-      cnpj: inst.cnpj,
-      phone: inst.phone,
-      email: inst.email,
-      active: true,
-      street: inst.address.street,
-      number: inst.address.number,
-      neighborhood: inst.address.neighborhood,
-      city: inst.address.city,
-      state: inst.address.state,
-      zip_code: inst.address.zipCode,
-      responsible_name: inst.responsible?.name,
-      responsible_phone: inst.responsible?.phone,
-      responsible_email: inst.responsible?.email,
-      objective: inst.objective,
-      area_of_activity: inst.areaOfActivity,
-      activities_description: inst.activitiesDescription,
-      partnership_type: inst.partnershipType,
-      partnership_frequency: inst.partnershipFrequency,
-      has_past_experience: inst.hasPastExperience,
-      past_experience_description: inst.pastExperienceDescription,
-      notes: inst.notes
+      name: inst.name, type: inst.type, cnpj: inst.cnpj, phone: inst.phone, email: inst.email, active: true,
+      street: inst.address.street, number: inst.address.number, neighborhood: inst.address.neighborhood,
+      city: inst.address.city, state: inst.address.state, zip_code: inst.address.zipCode,
+      responsible_name: inst.responsible?.name, responsible_phone: inst.responsible?.phone, responsible_email: inst.responsible?.email,
+      objective: inst.objective, area_of_activity: inst.areaOfActivity, activities_description: inst.activitiesDescription,
+      partnership_type: inst.partnershipType, partnership_frequency: inst.partnershipFrequency,
+      has_past_experience: inst.hasPastExperience, past_experience_description: inst.pastExperienceDescription, notes: inst.notes
     };
     const { error } = await supabase.from('doa_institutions').insert([payload]);
     if (error) throw error;
@@ -158,6 +143,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteItem = async (id: string) => {
     const { error } = await supabase.from('doa_items').delete().eq('id', id);
+    if (error) throw error;
+    await refreshData();
+  };
+
+  const deleteMovement = async (id: string) => {
+    const { error } = await supabase.from('doa_movements').delete().eq('id', id);
     if (error) throw error;
     await refreshData();
   };
@@ -213,7 +204,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [movements, getStock]);
 
   return React.createElement(AppContext.Provider, {
-    value: { items, institutions, individuals, movements, loading, getStock, getDashboardStats, addMovement, addItem, addInstitution, addIndividual, deleteInstitution, deleteIndividual, deleteItem, refreshData }
+    value: { items, institutions, individuals, movements, loading, getStock, getDashboardStats, addMovement, addItem, addInstitution, addIndividual, deleteInstitution, deleteIndividual, deleteItem, deleteMovement, refreshData }
   }, children);
 };
 
