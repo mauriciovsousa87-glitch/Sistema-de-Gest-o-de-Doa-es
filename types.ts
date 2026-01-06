@@ -10,6 +10,15 @@ export type MovType = 'ENTRADA' | 'SAÍDA';
 export type MovCategory = 'ITEM' | 'DINHEIRO';
 export type PaymentMethod = 'PIX' | 'Dinheiro' | 'Transferência' | 'Cartão' | 'Outro';
 
+export interface Address {
+  street: string;
+  number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
 export interface Item {
   id: string;
   name: string;
@@ -22,6 +31,17 @@ export interface Item {
   createdAt: string;
 }
 
+export interface Individual {
+  id: string;
+  name: string;
+  cpf: string;
+  phone: string;
+  email: string;
+  address: Address;
+  notes: string;
+  active: boolean;
+}
+
 export interface Institution {
   id: string;
   name: string;
@@ -29,14 +49,7 @@ export interface Institution {
   cnpj: string;
   phone: string;
   email: string;
-  address: {
-    street: string;
-    number: string;
-    neighborhood: string;
-    city: string;
-    state: string;
-    zipCode: string;
-  };
+  address: Address;
   responsible: {
     name: string;
     position: string;
@@ -59,15 +72,15 @@ export interface Movement {
   type: MovType;
   date: string;
   category: MovCategory;
-  itemId?: string; // Reference to Item
+  itemId?: string;
   quantity?: number;
   unitValue?: number;
-  totalValue: number; // calculated quantity * unitValue OR just valueMoney
+  totalValue: number;
   valueMoney?: number;
   paymentMethod?: PaymentMethod;
   donor?: string;
   destinationId?: string; // Reference to Institution
-  receiptUrl?: string;
+  recipientId?: string;   // Reference to Individual
   notes: string;
 }
 
@@ -87,4 +100,5 @@ export interface DashboardStats {
   totalItemsOut: number;
   estimatedStockValue: number;
   institutionsServed: number;
+  individualsServed: number;
 }
