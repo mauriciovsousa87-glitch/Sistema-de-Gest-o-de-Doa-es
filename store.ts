@@ -18,6 +18,7 @@ interface AppContextType {
   getDashboardStats: () => DashboardStats;
   addMovement: (mov: Omit<Movement, 'id'>) => Promise<void>;
   addItem: (item: Omit<Item, 'id' | 'createdAt'>) => Promise<void>;
+  updateItem: (id: string, item: Partial<Item>) => Promise<void>;
   addInstitution: (inst: Omit<Institution, 'id'>) => Promise<void>;
   addIndividual: (ind: Omit<Individual, 'id'>) => Promise<void>;
   deleteInstitution: (id: string) => Promise<void>;
@@ -102,6 +103,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   useEffect(() => { refreshData(); }, [refreshData]);
+
+  const updateItem = async (id: string, item: any) => {
+    const payload = {
+      name: item.name, category: item.category, unit: item.unit,
+      reference_value: item.referenceValue, image_url: item.imageUrl,
+      description: item.description, active: item.active
+    };
+    const { error } = await supabase.from('doa_items').update(payload).eq('id', id);
+    if (error) throw error;
+    await refreshData();
+  };
 
   const addInstitution = async (inst: any) => {
     const payload = {
@@ -190,21 +202,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const getDashboardStats = useCallback((): DashboardStats => {
     const moneyIn = movements.filter(m => m.type === 'ENTRADA' && m.category === 'DINHEIRO').reduce((a, c) => a + (Number(c.valueMoney) || 0), 0);
     const moneyOut = movements.filter(m => m.type === 'SAÍDA' && m.category === 'DINHEIRO').reduce((a, c) => a + (Number(c.valueMoney) || 0), 0);
-    const itemsIn = movements.filter(m => m.type === 'ENTRADA' && m.category === 'ITEM').reduce((a, c) => a + (Number(c.quantity) || 0), 0);
-    const itemsOut = movements.filter(m => m.type === 'SAÍDA' && m.category === 'ITEM').reduce((a, c) => a + (Number(c.quantity) || 0), 0);
+    
+    const itemsInVal = movements.filter(m => m.type === 'ENTRADA' && m.category === 'ITEM').reduce((a, c) => a + (Number(c.totalValue) || 0), 0);
+    const itemsOutVal = movements.filter(m => m.type === 'SAÍDA' && m.category === 'ITEM').reduce((a, c) => a + (Number(c.totalValue) || 0), 0);
+    
+    const itemsInQty = movements.filter(m => m.type === 'ENTRADA' && m.category === 'ITEM').reduce((a, c) => a + (Number(c.quantity) || 0), 0);
+    const itemsOutQty = movements.filter(m => m.type === 'SAÍDA' && m.category === 'ITEM').reduce((a, c) => a + (Number(c.quantity) || 0), 0);
+    
     const stock = getStock();
-    const instSrv = new Set(movements.filter(m => m.type === 'SAÍDA' && m.destinationId).map(m => m.destinationId)).size;
-    const indSrv = new Set(movements.filter(m => m.type === 'SAÍDA' && m.recipientId).map(m => m.recipientId)).size;
+    const instCount = institutions.length;
+    const indCount = individuals.length;
 
     return {
-      totalMoneyIn: moneyIn, totalMoneyOut: moneyOut, cashBalance: moneyIn - moneyOut,
-      totalItemsIn: itemsIn, totalItemsOut: itemsOut, estimatedStockValue: stock.reduce((a, c) => a + c.estimatedValue, 0),
-      institutionsServed: instSrv, individualsServed: indSrv
+      totalMoneyIn: moneyIn + itemsInVal, 
+      totalMoneyOut: moneyOut + itemsOutVal, 
+      cashBalance: moneyIn - moneyOut,
+      totalItemsIn: itemsInQty, 
+      totalItemsOut: itemsOutQty, 
+      estimatedStockValue: stock.reduce((a, c) => a + c.estimatedValue, 0),
+      institutionsServed: instCount, 
+      individualsServed: indCount
     };
-  }, [movements, getStock]);
+  }, [movements, getStock, institutions, individuals]);
 
   return React.createElement(AppContext.Provider, {
-    value: { items, institutions, individuals, movements, loading, getStock, getDashboardStats, addMovement, addItem, addInstitution, addIndividual, deleteInstitution, deleteIndividual, deleteItem, deleteMovement, refreshData }
+    value: { items, institutions, individuals, movements, loading, getStock, getDashboardStats, addMovement, addItem, updateItem, addInstitution, addIndividual, deleteInstitution, deleteIndividual, deleteItem, deleteMovement, refreshData }
   }, children);
 };
 
