@@ -14,8 +14,7 @@ import {
   PieChart, 
   Pie, 
   Cell,
-  LineChart,
-  Line
+  LabelList
 } from 'recharts';
 import { Movement, StockInfo, Item } from '../types';
 
@@ -49,10 +48,10 @@ export const DashboardCharts: React.FC<ChartsProps> = ({ movements, stock, items
     return acc;
   }, []);
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const COLORS = ['#3b82f6', '#10b981', '#EAB308', '#ef4444', '#8b5cf6'];
 
-  // Prep Horizontal Bar Chart: Top Items
-  const topItems = stock
+  // Prep Horizontal Bar Chart: Top Items in Stock
+  const topItemsStock = stock
     .map(s => ({
       name: items.find(i => i.id === s.itemId)?.name || 'Desconhecido',
       quantity: s.quantity
@@ -60,11 +59,22 @@ export const DashboardCharts: React.FC<ChartsProps> = ({ movements, stock, items
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, 5);
 
+  // Prep Chart: Most Donated Items (Exits)
+  const mostDonated = items.map(item => {
+    const totalOut = movements
+      .filter(m => m.type === 'SAÍDA' && m.category === 'ITEM' && m.itemId === item.id)
+      .reduce((acc, curr) => acc + (curr.quantity || 0), 0);
+    return { name: item.name, quantity: totalOut };
+  })
+  .filter(i => i.quantity > 0)
+  .sort((a, b) => b.quantity - a.quantity)
+  .slice(0, 5);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 pb-10">
       {/* Entries vs Exits Area Chart */}
-      <div className="bg-white p-6 rounded-xl border shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-800 mb-6">Entradas vs Saídas (Financeiro)</h3>
+      <div className="bg-white p-6 rounded-2xl border shadow-sm">
+        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Fluxo Financeiro Mensal</h3>
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={areaData}>
@@ -79,12 +89,12 @@ export const DashboardCharts: React.FC<ChartsProps> = ({ movements, stock, items
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} />
-              <YAxis axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 'bold' }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 'bold' }} />
               <Tooltip 
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
               />
-              <Legend verticalAlign="top" align="right" iconType="circle" height={36}/>
+              <Legend verticalAlign="top" align="right" iconType="circle" height={36} wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}/>
               <Area 
                 name="Entradas" 
                 type="monotone" 
@@ -92,7 +102,7 @@ export const DashboardCharts: React.FC<ChartsProps> = ({ movements, stock, items
                 stroke="#3b82f6" 
                 fillOpacity={1} 
                 fill="url(#colorEnt)" 
-                strokeWidth={2}
+                strokeWidth={3}
               />
               <Area 
                 name="Saídas" 
@@ -101,7 +111,7 @@ export const DashboardCharts: React.FC<ChartsProps> = ({ movements, stock, items
                 stroke="#ef4444" 
                 fillOpacity={1} 
                 fill="url(#colorSai)" 
-                strokeWidth={2}
+                strokeWidth={3}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -109,8 +119,8 @@ export const DashboardCharts: React.FC<ChartsProps> = ({ movements, stock, items
       </div>
 
       {/* Stock Category Distribution Pie */}
-      <div className="bg-white p-6 rounded-xl border shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-800 mb-6">Estoque por Categoria</h3>
+      <div className="bg-white p-6 rounded-2xl border shadow-sm">
+        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Estoque por Categoria</h3>
         <div className="h-[300px] w-full flex items-center justify-center">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -118,36 +128,60 @@ export const DashboardCharts: React.FC<ChartsProps> = ({ movements, stock, items
                 data={categoryData}
                 innerRadius={60}
                 outerRadius={100}
-                paddingAngle={5}
+                paddingAngle={8}
                 dataKey="value"
+                stroke="none"
               >
                 {categoryData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip 
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
               />
-              <Legend verticalAlign="bottom" height={36}/>
+              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}/>
             </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* Top Items Bar Chart */}
-      <div className="bg-white p-6 rounded-xl border shadow-sm lg:col-span-2">
-        <h3 className="text-lg font-semibold text-slate-800 mb-6">Top Itens em Estoque</h3>
+      <div className="bg-white p-6 rounded-2xl border shadow-sm">
+        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Top Itens em Estoque</h3>
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart layout="vertical" data={topItems} margin={{ left: 20 }}>
+            <BarChart layout="vertical" data={topItemsStock} margin={{ left: 40, right: 40 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
               <XAxis type="number" hide />
-              <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} />
+              <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'black', fill: '#64748b' }} width={100} />
               <Tooltip 
                 cursor={{ fill: '#f8fafc' }}
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
               />
-              <Bar dataKey="quantity" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} name="Quantidade" />
+              <Bar dataKey="quantity" fill="#001A33" radius={[0, 6, 6, 0]} barSize={24} name="Quantidade">
+                <LabelList dataKey="quantity" position="right" style={{ fontSize: '11px', fontWeight: '900', fill: '#001A33' }} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Most Donated Items Bar Chart */}
+      <div className="bg-white p-6 rounded-2xl border shadow-sm">
+        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Itens Mais Doados (Ranking)</h3>
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart layout="vertical" data={mostDonated} margin={{ left: 40, right: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+              <XAxis type="number" hide />
+              <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'black', fill: '#64748b' }} width={100} />
+              <Tooltip 
+                cursor={{ fill: '#f8fafc' }}
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+              />
+              <Bar dataKey="quantity" fill="#ef4444" radius={[0, 6, 6, 0]} barSize={24} name="Qtd. Doadas">
+                <LabelList dataKey="quantity" position="right" style={{ fontSize: '11px', fontWeight: '900', fill: '#ef4444' }} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
