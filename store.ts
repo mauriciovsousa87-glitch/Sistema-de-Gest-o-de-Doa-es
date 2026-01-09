@@ -65,11 +65,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name: i.responsible_name, position: '', phone: i.responsible_phone, email: i.responsible_email
           },
           areaOfActivity: i.area_of_activity,
-          activitiesDescription: i.activities_description,
-          partnershipType: i.partnership_type,
-          partnershipFrequency: i.partnership_frequency,
-          hasPastExperience: i.has_past_experience,
-          pastExperienceDescription: i.past_experience_description
+          activities_description: i.activities_description,
+          partnership_type: i.partnership_type,
+          partnership_frequency: i.partnership_frequency,
+          has_past_experience: i.has_past_experience,
+          past_experience_description: i.past_experience_description
         })));
       }
 
@@ -110,8 +110,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       reference_value: item.referenceValue, image_url: item.imageUrl,
       description: item.description, active: item.active
     };
+    
+    // Atualiza o item
     const { error } = await supabase.from('doa_items').update(payload).eq('id', id);
     if (error) throw error;
+
+    // Sincroniza movimentos existentes se o valor mudou (opcionalmente)
+    // Para garantir integridade total, recalculamos o total_value de movimentos de SAÍDA do tipo ITEM
+    const { data: relatedMovements } = await supabase.from('doa_movements').select('*').eq('item_id', id).eq('category', 'ITEM');
+    
+    if (relatedMovements) {
+      for (const mov of relatedMovements) {
+         const newTotal = Number(mov.quantity) * Number(item.referenceValue);
+         await supabase.from('doa_movements').update({ 
+           unit_value: item.referenceValue, 
+           total_value: newTotal 
+         }).eq('id', mov.id);
+      }
+    }
+
     await refreshData();
   };
 

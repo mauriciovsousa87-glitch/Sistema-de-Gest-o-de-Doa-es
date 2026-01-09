@@ -1,24 +1,30 @@
 
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../store';
-import { Institution, Individual } from '../types';
-import { Building2, Plus, Search, User, Phone, Mail, MapPin, Inbox, Loader2, Trash2, AlertCircle, Check } from 'lucide-react';
-import { formatCNPJ, formatPhone } from '../utils';
+import { Institution, Individual, Movement } from '../types';
+import { Building2, Plus, Search, User, Phone, Mail, MapPin, Inbox, Loader2, Trash2, AlertCircle, X, Calendar, Heart, Coins, Package } from 'lucide-react';
+import { formatCNPJ, formatPhone, formatCurrency, formatDate } from '../utils';
 
 const Beneficiaries: React.FC = () => {
-  const { institutions, individuals, addInstitution, addIndividual, deleteInstitution, deleteIndividual, loading } = useAppStore();
+  const { institutions, individuals, addInstitution, addIndividual, deleteInstitution, deleteIndividual, movements, items, loading } = useAppStore();
   const [showForm, setShowForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [beneficiaryType, setBeneficiaryType] = useState<'PJ' | 'PF'>('PJ');
   const [search, setSearch] = useState('');
+  const [selectedBeneficiary, setSelectedBeneficiary] = useState<{ id: string, name: string, type: 'PJ' | 'PF' } | null>(null);
 
   const [formPJ, setFormPJ] = useState<Omit<Institution, 'id' | 'active'>>({
     name: '', type: 'ONG', cnpj: '', phone: '', email: '',
     address: { street: '', number: '', neighborhood: '', city: '', state: '', zipCode: '' },
     responsible: { name: '', position: '', phone: '', email: '' },
-    objective: '', areaOfActivity: 'Assistência Social', activitiesDescription: '',
-    partnershipType: 'Doação de recursos', partnershipFrequency: 'Periódica',
-    hasPastExperience: false, pastExperienceDescription: '', notes: ''
+    objective: '', areaOfActivity: 'Assistência Social', 
+    // Fix: Using camelCase properties to match the Institution type interface
+    activitiesDescription: '',
+    partnershipType: 'Doação de recursos', 
+    partnershipFrequency: 'Periódica',
+    hasPastExperience: false, 
+    pastExperienceDescription: '', 
+    notes: ''
   });
 
   const [formPF, setFormPF] = useState<Omit<Individual, 'id' | 'active'>>({
@@ -54,6 +60,14 @@ const Beneficiaries: React.FC = () => {
     (i.name || '').toLowerCase().includes(search.toLowerCase()) || 
     (i.cpf || '').includes(search)
   ), [individuals, search]);
+
+  const beneficiaryHistory = useMemo(() => {
+    if (!selectedBeneficiary) return [];
+    return movements.filter(m => 
+      m.type === 'SAÍDA' && 
+      (selectedBeneficiary.type === 'PJ' ? m.destinationId === selectedBeneficiary.id : m.recipientId === selectedBeneficiary.id)
+    );
+  }, [movements, selectedBeneficiary]);
 
   return (
     <div className="space-y-6">
@@ -141,25 +155,96 @@ const Beneficiaries: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {beneficiaryType === 'PJ' ? (
                 filteredPJ.length > 0 ? filteredPJ.map(inst => (
-                  <BeneficiaryCard key={inst.id} id={inst.id} name={inst.name} identifier={inst.cnpj} type={inst.type} phone={inst.phone} email={inst.email} icon={<Building2 size={24} />} onAction={deleteInstitution} />
+                  <BeneficiaryCard key={inst.id} id={inst.id} name={inst.name} identifier={inst.cnpj} type={inst.type} phone={inst.phone} email={inst.email} icon={<Building2 size={24} />} onAction={deleteInstitution} onSelect={() => setSelectedBeneficiary({ id: inst.id, name: inst.name, type: 'PJ' })} />
                 )) : <EmptyList message="Nenhuma instituição encontrada." />
               ) : (
                 filteredPF.length > 0 ? filteredPF.map(ind => (
-                  <BeneficiaryCard key={ind.id} id={ind.id} name={ind.name} identifier={ind.cpf} type="PESSOA FÍSICA" phone={ind.phone} email={ind.email} icon={<User size={24} />} onAction={deleteIndividual} />
+                  <BeneficiaryCard key={ind.id} id={ind.id} name={ind.name} identifier={ind.cpf} type="PESSOA FÍSICA" phone={ind.phone} email={ind.email} icon={<User size={24} />} onAction={deleteIndividual} onSelect={() => setSelectedBeneficiary({ id: ind.id, name: ind.name, type: 'PF' })} />
                 )) : <EmptyList message="Nenhuma pessoa encontrada." />
               )}
             </div>
           )}
         </div>
       )}
+
+      {/* MODAL DE HISTÓRICO */}
+      {selectedBeneficiary && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setSelectedBeneficiary(null)}>
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#001A33] p-6 text-white flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/10 rounded-2xl">
+                   {selectedBeneficiary.type === 'PJ' ? <Building2 size={24} className="text-[#EAB308]" /> : <User size={24} className="text-[#EAB308]" />}
+                </div>
+                <div>
+                  <h3 className="font-black text-xl leading-tight uppercase tracking-tight">{selectedBeneficiary.name}</h3>
+                  <p className="text-xs text-white/50 font-bold tracking-widest uppercase">Histórico de Atendimento</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedBeneficiary(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              {beneficiaryHistory.length > 0 ? (
+                <div className="space-y-4">
+                  {beneficiaryHistory.map((mov) => {
+                    const item = mov.itemId ? items.find(i => i.id === mov.itemId) : null;
+                    return (
+                      <div key={mov.id} className="flex gap-4 p-4 rounded-2xl border bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                        <div className={`p-3 rounded-xl h-fit ${mov.category === 'ITEM' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                          {mov.category === 'ITEM' ? <Package size={20} /> : <Coins size={20} />}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="font-black text-slate-800 uppercase text-sm">
+                              {mov.category === 'ITEM' ? (item?.name || 'Item Removido') : 'Doação em Dinheiro'}
+                            </span>
+                            <span className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase">
+                              <Calendar size={12} /> {formatDate(mov.date)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center mt-2">
+                             <div className="text-xs font-bold text-slate-500">
+                               {mov.category === 'ITEM' ? `${mov.quantity} ${item?.unit || 'un'}` : mov.paymentMethod || 'Recurso Próprio'}
+                             </div>
+                             <div className="font-black text-[#001A33]">
+                               {formatCurrency(mov.totalValue)}
+                             </div>
+                          </div>
+                          {mov.notes && <p className="mt-3 text-xs text-slate-400 italic border-l-2 border-slate-200 pl-3">"{mov.notes}"</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-20 flex flex-col items-center text-slate-300">
+                  <Heart size={48} className="mb-4 opacity-20" />
+                  <p className="font-bold text-sm uppercase tracking-widest">Nenhuma doação registrada ainda</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 bg-slate-50 border-t flex justify-between items-center">
+               <div className="text-xs font-black text-slate-400 uppercase">Total Recebido</div>
+               <div className="text-xl font-black text-emerald-600">
+                 {formatCurrency(beneficiaryHistory.reduce((acc, curr) => acc + curr.totalValue, 0))}
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-const BeneficiaryCard = ({ id, name, identifier, type, phone, email, icon, onAction }: any) => {
+const BeneficiaryCard = ({ id, name, identifier, type, phone, email, icon, onAction, onSelect }: any) => {
   const [deleteStage, setDeleteStage] = useState<'idle' | 'armed' | 'processing'>('idle');
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (deleteStage === 'idle') {
       setDeleteStage('armed');
       setTimeout(() => setDeleteStage('idle'), 4000); // Reset após 4s
@@ -178,10 +263,13 @@ const BeneficiaryCard = ({ id, name, identifier, type, phone, email, icon, onAct
   };
 
   return (
-    <div className={`bg-white border rounded-2xl p-5 shadow-sm transition-all flex flex-col justify-between group ${deleteStage === 'armed' ? 'border-red-500 ring-2 ring-red-100' : ''}`}>
+    <div 
+      onClick={onSelect}
+      className={`bg-white border rounded-2xl p-5 shadow-sm transition-all flex flex-col justify-between group cursor-pointer hover:border-[#EAB308] hover:shadow-md ${deleteStage === 'armed' ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+    >
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl transition-colors ${deleteStage === 'armed' ? 'bg-red-100 text-red-600' : 'bg-[#001A33]/5 text-[#001A33]'}`}>{icon}</div>
+          <div className={`p-3 rounded-xl transition-colors ${deleteStage === 'armed' ? 'bg-red-100 text-red-600' : 'bg-[#001A33]/5 text-[#001A33] group-hover:bg-[#EAB308]/10'}`}>{icon}</div>
           <div>
             <h4 className="font-bold text-slate-800">{name || 'Sem nome'}</h4>
             <p className="text-xs text-slate-400 font-medium">{identifier || 'Sem documento'}</p>
